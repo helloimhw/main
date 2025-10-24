@@ -1,1 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>룰렛 돌리기</title>
+    <style>
+        /* --- (스타일 동일, 변화 없음) --- */
+        body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);margin:0;min-height:100vh}
+        .container{max-width:900px;margin:40px auto;background:#fff;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:40px 20px}
+        h1{text-align:center;margin-bottom:30px}
+        .flex{display:flex;gap:40px;flex-wrap:wrap;justify-content:center}
+        .panel{flex:1 1 300px;min-width:300px;max-width:350px}
+        .word-input-group{display:flex;gap:10px;margin-bottom:15px}
+        .word-input{flex:1;padding:10px;border:2px solid #e0e0e0;border-radius:8px;font-size:16px}
+        .add-word-btn{padding:10px 18px;background:#667eea;color:#fff;border:none;border-radius:8px;cursor:pointer}
+        .add-word-btn:hover{background:#5a5fcf}
+        .word-list{max-height:180px;overflow-y:auto;margin-bottom:20px}
+        .word-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #eee}
+        .delete-btn{background:#ff6b6b;color:#fff;border:none;padding:3px 10px;border-radius:5px;cursor:pointer;font-size:14px}
+        .delete-btn:hover{background:#ff5252}
+        .spin-btn{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;padding:15px 40px;font-size:20px;border-radius:50px;cursor:pointer;margin-top:20px;width:100%}
+        .spin-btn:disabled{opacity:.5;cursor:not-allowed}
+        .roulette-wrapper{position:relative;width:340px;height:340px;margin:0 auto 20px}
+        #rouletteCanvas{width:100%;height:100%;border-radius:50%;box-shadow:0 5px 15px rgba(0,0,0,.08)}
+        .pointer{position:absolute;top:-28px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-bottom:36px solid #ff6b6b;z-index:10}
+        .result{font-size:22px;font-weight:bold;text-align:center;min-height:40px;padding:10px;background:#f0f0f0;border-radius:10px;width:100%;max-width:340px;margin:0 auto}
+        .result.show{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
+        .color-palette{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+        .color-option{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.3s}
+        .color-option.selected{border-color:#333}
+        @media(max-width:900px){.flex{flex-direction:column;align-items:center}.panel{max-width:100%}.roulette-wrapper{width:260px;height:260px}.result{max-width:260px}}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🎯 룰렛 돌리기</h1>
+    <div class="flex">
+        <!-- 좌측 컨트롤 패널 -->
+        <div class="panel">
+            <div class="word-input-group">
+                <input type="text" id="wordInput" class="word-input" placeholder="단어를 입력하세요" maxlength="20">
+                <button class="add-word-btn" onclick="addWord()">추가</button>
+            </div>
+            <div id="wordList" class="word-list"></div>
 
+            <label style="font-weight:bold;margin-top:20px;display:block">테마 색상 선택:</label>
+            <div id="colorPalette" class="color-palette">
+                <div class="color-option selected" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)" data-theme="purple"></div>
+                <div class="color-option" style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)" data-theme="pink"></div>
+                <div class="color-option" style="background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%)" data-theme="blue"></div>
+                <div class="color-option" style="background:linear-gradient(135deg,#43e97b 0%,#38f9d7 100%)" data-theme="green"></div>
+                <div class="color-option" style="background:linear-gradient(135deg,#fa709a 0%,#fee140 100%)" data-theme="sunset"></div>
+                <div class="color-option" style="background:linear-gradient(135deg,#30cfd0 0%,#330867 100%)" data-theme="ocean"></div>
+            </div>
+
+            <button id="spinBtn" class="spin-btn" onclick="spinRoulette()" disabled>🎲 룰렛 돌리기</button>
+        </div>
+
+        <!-- 우측 룰렛 -->
+        <div class="panel">
+            <div class="roulette-wrapper">
+                <div class="pointer"></div>
+                <canvas id="rouletteCanvas" width="340" height="340"></canvas>
+            </div>
+            <div id="result" class="result"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ===================== 공통 변수 ===================== */
+let words = [];
+let isSpinning = false;
+let currentTheme = 'purple';
+
+const themes = {
+    purple:['#667eea','#764ba2'],
+    pink:['#f093fb','#f5576c'],
+    blue:['#4facfe','#00f2fe'],
+    green:['#43e97b','#38f9d7'],
+    sunset:['#fa709a','#fee140'],
+    ocean:['#30cfd0','#330867']
+};
+
+/* ===================== 단어 관련 ===================== */
+function addWord(){
+    const input=document.getElementById('wordInput');
+    const w=input.value.trim();
+    if(!w){showMessage('단어를 입력해주세요!');return;}
+    if(words.includes(w)){showMessage('이미 추가된 단어입니다!');return;}
+    if(words.length>=12){showMessage('최대 12개까지만!');return;}
+    words.push(w); input.value='';
+    updateWordList(); drawRoulette(); toggleSpinBtn();
+}
+function deleteWord(i){
+    words.splice(i,1);
+    updateWordList(); drawRoulette(); toggleSpinBtn();
+}
+function updateWordList(){
+    const box=document.getElementById('wordList');
+    if(words.length===0){box.innerHTML='<div style="color:#aaa;text-align:center;padding:20px 0;">추가된 단어가 없습니다</div>';return;}
+    box.innerHTML=words.map((w,i)=>`
+      <div class="word-item">
+        <span>${w}</span>
+        <button class="delete-btn" onclick="deleteWord(${i})">삭제</button>
+      </div>`).join('');
+}
+
+/* ===================== 룰렛 그리기 ===================== */
+function drawRoulette(rotation=0){
+    const canvas=document.getElementById('rouletteCanvas');
+    const ctx=canvas.getContext('2d');
+    const cx=canvas.width/2, cy=canvas.height/2, r=150;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    if(words.length===0){
+        ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);
+        ctx.fillStyle='#f0f0f0';ctx.fill();ctx.strokeStyle='#ddd';ctx.lineWidth=2;ctx.stroke();
+        ctx.fillStyle='#999';ctx.font='20px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('단어를 추가하세요',cx,cy);return;
+    }
+    const angle=2*Math.PI/words.length, colors=makeColors(words.length);
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(rotation*Math.PI/180);ctx.translate(-cx,-cy);
+
+    words.forEach((w,i)=>{
+        const sa=i*angle-Math.PI/2, ea=(i+1)*angle-Math.PI/2;
+        ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,sa,ea);ctx.closePath();
+        ctx.fillStyle=colors[i];ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+
+        ctx.save();ctx.translate(cx,cy);ctx.rotate(sa+angle/2);
+        ctx.fillStyle='#fff';ctx.font='bold 16px Arial';ctx.textAlign='center';
+        ctx.shadowColor='rgba(0,0,0,.2)';ctx.shadowBlur=2;
+        ctx.fillText(w,r*0.65,0);ctx.restore();
+    });
+    ctx.restore();
+
+    ctx.beginPath();ctx.arc(cx,cy,30,0,2*Math.PI);
+    ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle=themes[currentTheme][0];ctx.lineWidth=3;ctx.stroke();
+}
+function makeColors(n){
+    const arr=[], [c1,c2]=[hex2rgb(themes[currentTheme][0]),hex2rgb(themes[currentTheme][1])];
+    for(let i=0;i<n;i++){
+        const t=i/n;
+        arr.push(`rgb(${lerp(c1.r,c2.r,t)},${lerp(c1.g,c2.g,t)},${lerp(c1.b,c2.b,t)})`);
+    }return arr;
+}
+const lerp=(a,b,t)=>Math.round(a+(b-a)*t);
+const hex2rgb=hex=>({r:parseInt(hex.substr(1,2),16),g:parseInt(hex.substr(3,2),16),b:parseInt(hex.substr(5,2),16)});
+
+/* ===================== 룰렛 돌리기 ===================== */
+function spinRoulette(){
+    if(isSpinning||words.length===0)return;
+    isSpinning=true;toggleSpinBtn();
+    const resultBox=document.getElementById('result');
+    resultBox.textContent='';resultBox.classList.remove('show');
+
+    const duration=3000+Math.random()*2000;  //3~5초
+    const rotations=5+Math.random()*5;       //5~10바퀴
+    const finalAngle=Math.random()*360;      //마지막 각도
+    let start=null;
+
+    function animate(t){
+        if(!start)start=t;
+        const e=t-start;
+        const p=Math.min(e/duration,1);
+        const ease=1-Math.pow(1-p,3);
+        const rot=ease*(rotations*360+finalAngle);
+        drawRoulette(rot);
+
+        if(p<1){requestAnimationFrame(animate);}
+        else{
+            /* ==== 결과 계산 정확히 맞추기 ==== */
+            const wheelRotation=rot%360;               //현재 실제 회전각(시계방향 +)
+            const anglePer=360/words.length;
+            const relative=(270-wheelRotation+360)%360;//포인터(270°) 기준으로 역산
+            const idx=Math.floor(relative/anglePer);
+            const picked=words[idx];
+
+            resultBox.textContent='🎉 '+picked;
+            resultBox.classList.add('show');
+            isSpinning=false;toggleSpinBtn();
+        }
+    }
+    requestAnimationFrame(animate);
+}
+
+/* ===================== 기타 ===================== */
+function toggleSpinBtn(){document.getElementById('spinBtn').disabled=isSpinning||words.length===0;}
+function showMessage(msg){
+    const r=document.getElementById('result');
+    r.textContent=msg;r.classList.add('show');
+    setTimeout(()=>r.classList.remove('show'),1500);
+}
+
+/* --- 테마 변경 이벤트 --- */
+document.getElementById('colorPalette').addEventListener('click',e=>{
+    if(!e.target.classList.contains('color-option'))return;
+    document.querySelectorAll('.color-option').forEach(o=>o.classList.remove('selected'));
+    e.target.classList.add('selected');
+    currentTheme=e.target.dataset.theme;
+    document.body.style.background=`linear-gradient(135deg, ${themes[currentTheme][0]} 0%, ${themes[currentTheme][1]} 100%)`;
+    drawRoulette();
+});
+
+/* --- Enter키로 단어 추가 --- */
+document.getElementById('wordInput').addEventListener('keypress',e=>{
+    if(e.key==='Enter')addWord();
+});
+
+/* 초기화 */
+updateWordList();drawRoulette();toggleSpinBtn();
+</script>
+</body>
+</html>
