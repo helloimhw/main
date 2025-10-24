@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>룰렛 돌리기</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <input type="text" id="wordInput" placeholder="룰렛에 쓸 단어 입력">
+        <input type="number" id="countInput" placeholder="단어 개수 입력">
+        <button onclick="spinWheel()">룰렛 돌리기</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function spinWheel() {
+            const wordInput = document.getElementById('wordInput').value;
+            const countInput = document.getElementById('countInput').value;
+
+            if (!wordInput || isNaN(countInput) || countInput <= 0) {
+                alert('유효한 단어와 개수를 입력해주세요.');
+                return;
+            }
+
+            const words = [];
+            for (let i = 0; i < countInput; i++) {
+                words.push(wordInput);
+            }
+
+            const randomIndex = Math.floor(Math.random() * words.length);
+            const result = words[randomIndex];
+            document.getElementById('result').textContent = `룰렛이 멈춰있습니다: ${result}`;
+        }
+    </script>
+</body>
+</html>
